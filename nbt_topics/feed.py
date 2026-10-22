@@ -64,8 +64,8 @@ class HttpFeedSource:
                 return data
             except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, ConnectionError) as err:
                 last_err = err
-                if isinstance(err, urllib.error.HTTPError) and err.code == 404:
-                    break
+                if isinstance(err, urllib.error.HTTPError) and 400 <= err.code < 500:
+                    break  # client errors (no such feed) won't succeed on retry
                 time.sleep(0.5 * (2 ** attempt))
         log.warning("feed %s page %s failed: %s", msid, page, last_err)
         if cache.exists():  # serve stale rather than nothing
