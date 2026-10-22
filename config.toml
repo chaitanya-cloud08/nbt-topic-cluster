@@ -28,9 +28,11 @@ timezone = "Asia/Kolkata"
 
 [clustering]
 min_stories = 3          # smallest cluster that may be shown
-max_single_df = 12       # a single term in more stories than this is too broad ("delhi"); it is only used in pairs ("delhi + protest")
-max_cluster_size = 30
-merge_jaccard = 0.8      # terms covering (almost) the same stories are one topic
+max_cluster_size = 30    # a word in more stories than this is too broad to be one topic; it is split by the words next to it
+concept_jaccard = 0.6    # words in (almost) the same stories are one concept ("tiger" + "टाइगर" + "tigershroff")
+concept_containment = 0.7  # a Hindi-only and an English-only word sharing this much is a translation ("बेटे" / "son")
+anchor_cohesion = 0.4    # share of a word's story pairs that must also share another specific word for it to name a topic
+merge_jaccard = 0.8      # candidates covering (almost) the same stories are one topic
 overlap_reject = 0.5     # a candidate sharing more than this with a stronger cluster is dropped
 half_life_hours = 24     # recency weighting of stories in the score
 section_spread_bonus = 0.25  # score bonus per extra section a topic spans

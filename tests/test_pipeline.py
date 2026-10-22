@@ -1,4 +1,5 @@
-"""End-to-end and unit tests. The feed fixture is the real NBT lifestyle articlelist (msid 2354729, 22 Oct 2026)."""
+"""End-to-end and unit tests on real NBT articlelist feeds of 22 Oct 2026: page 1 of 12 news sections
+(tests/fixtures/news, trimmed to the fields the code reads) and the lifestyle section (tests/fixtures/2354729.json)."""
 from __future__ import annotations
 
 import copy
@@ -23,11 +24,19 @@ from nbt_topics.taxonomy import load_taxonomy
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "tests" / "fixtures"
+NEWS_DIR = FIXTURES / "news"
+NEWS = {p.stem for p in NEWS_DIR.glob("*.json")}
 TZ = ZoneInfo("Asia/Kolkata")
-NOW = datetime(2026, 10, 22, 12, 10, tzinfo=TZ)
+NOW = datetime(2026, 10, 22, 14, 40, tzinfo=TZ)
 LIFESTYLE = "2354729"
-KARWA = {"135108978", "135086995", "135084040"}
-DOCTOR = {"135107855", "135086995", "135085207", "135082360"}
+JAIPUR = "5194923"
+TIGER = {"135074223", "135074822", "135079133", "135081187", "135082807", "135086176", "135088812", "135095829",
+         "135103045", "135106276", "135108888", "135111118"}          # Tiger Shroff firing case
+BARALA = {"135059789", "135064847", "135067086", "135083543", "135086687", "135088103", "135095509", "135096235"}
+AZAM = {"135053897", "135068285", "135091954", "135109448", "135109843", "135112091", "135113575"}
+SABARMATI = {"135059490", "135103045", "135108634"}                    # Lawrence Bishnoi in Sabarmati jail
+DOCTOR = {"135107855", "135086995", "135085207", "135082360"}          # lifestyle stories that only share "डॉक्टर"
+SOFT = {"tier_map.hard": [], "tier_map.medium": [], "tier_map.default_tier": "soft"}
 
 
 def make_config(tmp: Path, **overrides) -> Config:
@@ -51,12 +60,12 @@ class FakeLLM:
     def __init__(self, verify_drop: set[str] | None = None, title: dict | None = None):
         self.calls = 0
         self.verify_drop = verify_drop or set()
-        self.title = title or {"title": "करवाचौथ 2026", "subtitle": "पायल और आलता के डिजाइन, प्रेग्नेंसी में व्रत पर डॉक्टर की राय"}
+        self.title = title or {"title": "रितु बराला केस", "subtitle": "जयपुर कमिश्नरेट में कांग्रेस का धरना"}
         self.prompts: list[str] = []
 
     def complete_json(self, system: str, user: str, max_tokens: int = 600) -> dict:
         self.calls += 1
-        self.prompts.append(system)
+        self.prompts.append(system + "\n" + user)
         if "check story groupings" in system:
             ids = [line.split(" | ")[0] for line in user.splitlines() if " | " in line]
             return {"keep": [i for i in ids if i not in self.verify_drop], "reason": "same topic"}
@@ -71,9 +80,9 @@ def env(tmp_path):
     return config, taxonomy, store, tmp_path
 
 
-def run(env, llm=None, now=NOW, source=None):
+def run(env, llm=None, now=NOW, source=None, only=NEWS):
     config, taxonomy, store, _ = env
-    report = run_once(config, taxonomy, source or ReplayFeedSource(FIXTURES), store, llm, now, {LIFESTYLE})
+    report = run_once(config, taxonomy, source or ReplayFeedSource(NEWS_DIR), store, llm, now, only)
     report["outputs"] = build_outputs(store, taxonomy, config, now)
     return report
 
@@ -101,25 +110,35 @@ def test_feed_time_parsing():
 
 # ---------- clustering on the real feed ----------
 
-def test_real_feed_gives_karwachauth_and_doctor_clusters(env):
+def test_real_feed_gives_one_cluster_per_story(env):
     report = run(env)
     _, _, store, tmp = env
     clusters = {frozenset(c.members): c for c in store.clusters()}
-    assert frozenset(KARWA) in clusters
-    assert frozenset(DOCTOR) in clusters
-    assert len(clusters) == 2                       # recipes / relationship are sections, not topics
-    karwa = clusters[frozenset(KARWA)]
-    assert karwa.title == "करवाचौथ 2026" and karwa.title_source == "rules"
-    assert karwa.score > clusters[frozenset(DOCTOR)].score   # fresher + spans two sub-sections
+    for topic in (TIGER, BARALA, AZAM, SABARMATI):
+        assert frozenset(topic) in clusters
+    for c in clusters.values():          # every topic is a name written in the headline and the URL alike
+        assert any(t.startswith("hi:") for t in c.terms) and any(t.startswith("en:") for t in c.terms)
+    tiger = clusters[frozenset(TIGER)]
+    assert tiger.score == max(c.score for c in clusters.values())
+    assert tiger.title.startswith("टाइगर श्रॉफ पर फायरिंग केस का कानपुर कनेक्शन")   # hard tier: newest headline
     home = json.loads((tmp / "out" / "home.json").read_text(encoding="utf-8"))
-    assert [c["count"] for c in home["clusters"]] == [3, 4]
+    assert home["clusters"][0]["count"] == 12 and len(home["clusters"]) == 5
     item = home["clusters"][0]["items"][0]
-    assert item["id"] == "135108978" and item["isNew"] is True
-    assert item["wu"].endswith("/lifestyle/fashion/trendy-and-latest-silver-anklet-design-ideas-for-karwachauth-2026-chandi-ki-payal/articleshow/135108978.cms")
+    assert item["id"] == "135111118"
+    assert item["wu"].endswith("/kanpur/kanpur-connection-in-firing-case-involving-tiger-shroff/articleshow/135111118.cms")
     index = json.loads((tmp / "out" / "story_index.json").read_text(encoding="utf-8"))["stories"]
-    assert len(index["135086995"]) == 2             # the pregnancy story is in both topics
-    assert (tmp / "out" / "sections" / f"{LIFESTYLE}.json").exists()
+    assert len(index["135103045"]) == 2             # "सलमान खान, बाबा सिद्दीकी, अब टाइगर श्रॉफ... साबरमती जेल से"
+    assert (tmp / "out" / "sections" / f"{JAIPUR}.json").exists()
     assert report["llm_calls"] == 0
+
+
+def test_one_shared_word_is_not_a_topic(env):
+    """The four lifestyle stories that only share "डॉक्टर" (a fertility test, urine leakage after delivery, an
+    unmarried girl's pregnancy, fasting in pregnancy) used to be a cluster. So did "सिंह", "कोर्ट", "जिंदगी"."""
+    report = run(env, now=datetime(2026, 10, 22, 12, 10, tzinfo=TZ), source=ReplayFeedSource(FIXTURES), only={LIFESTYLE})
+    _, _, store, _ = env
+    assert report["crawl"]["stories_in_window"] == 20
+    assert not any(c.members & DOCTOR for c in store.clusters())
 
 
 def test_second_run_is_stable(env):
@@ -134,20 +153,22 @@ def test_second_run_is_stable(env):
 def test_new_story_joins_existing_cluster(env, tmp_path):
     run(env)
     _, _, store, _ = env
-    karwa_id = next(c.id for c in store.clusters() if c.members == KARWA)
-    feed = json.loads((FIXTURES / f"{LIFESTYLE}.json").read_text(encoding="utf-8"))
-    new = copy.deepcopy(next(i for i in feed["items"] if i["id"] == "135084040"))
-    new.update(id="135199999", hl="करवाचौथ पर मेहंदी के आसान डिजाइन, हाथों में लगेंगे चार चांद",
-               seolocation="lifestyle/fashion/easy-mehndi-design-for-karwachauth-2026",
-               dl="Oct 22, 2026, 01:05 PM", lu="Oct 22, 2026, 01:05 PM")
-    feed["items"].insert(0, new)
+    tiger_id = next(c.id for c in store.clusters() if c.members == TIGER)
     replay = tmp_path / "replay2"
     replay.mkdir()
-    (replay / f"{LIFESTYLE}.json").write_text(json.dumps(feed, ensure_ascii=False), encoding="utf-8")
+    for msid in NEWS:
+        (replay / f"{msid}.json").write_bytes((NEWS_DIR / f"{msid}.json").read_bytes())
+    feed = json.loads((replay / "93273647.json").read_text(encoding="utf-8"))   # crime
+    new = copy.deepcopy(next(i for i in feed["items"] if i["id"] == "135106276"))
+    new.update(id="135199999", hl="टाइगर श्रॉफ फायरिंग केस: लॉरेंस बिश्नोई गैंग के शूटर की बहन मुंबई पुलिस की हिरासत में",
+               seolocation="crime/news/tiger-shroff-firing-case-lawrence-bishnoi-gang-shooter-sister-detained",
+               dl="Oct 22, 2026, 03:05 PM", lu="Oct 22, 2026, 03:05 PM")
+    feed["items"].insert(0, new)
+    (replay / "93273647.json").write_text(json.dumps(feed, ensure_ascii=False), encoding="utf-8")
     report = run(env, now=NOW + timedelta(hours=1), source=ReplayFeedSource(replay))
-    karwa = store.cluster(karwa_id)
-    assert "135199999" in karwa.members and len(karwa.members) == 4
-    assert any(e["cluster"] == karwa_id and e["action"] == "updated" for e in report["clusters"])
+    tiger = store.cluster(tiger_id)
+    assert tiger.members == TIGER | {"135199999"}
+    assert any(e["cluster"] == tiger_id and e["action"] == "updated" for e in report["clusters"])
 
 
 def test_lifecycle_archives_old_clusters(env):
@@ -162,21 +183,22 @@ def test_lifecycle_archives_old_clusters(env):
 def test_kill_switch(env):
     run(env)
     config, taxonomy, store, tmp = env
-    karwa_id = next(c.id for c in store.clusters() if c.members == KARWA)
-    store.set_killed(karwa_id, True)
+    tiger_id = next(c.id for c in store.clusters() if c.members == TIGER)
+    store.set_killed(tiger_id, True)
     build_outputs(store, taxonomy, config, NOW)
     home = json.loads((tmp / "out" / "home.json").read_text(encoding="utf-8"))
-    assert karwa_id not in [c["clusterId"] for c in home["clusters"]]
+    assert tiger_id not in [c["clusterId"] for c in home["clusters"]]
     run(env, now=NOW + timedelta(minutes=15))        # stays killed through later runs
-    assert store.cluster(karwa_id).killed
+    assert store.cluster(tiger_id).killed
     home = json.loads((tmp / "out" / "home.json").read_text(encoding="utf-8"))
-    assert karwa_id not in [c["clusterId"] for c in home["clusters"]]
+    assert tiger_id not in [c["clusterId"] for c in home["clusters"]]
 
 
 def test_disabled_section_is_not_crawled(tmp_path):
     config = make_config(tmp_path, **{"sections.disabled_msids": [LIFESTYLE]})
     taxonomy = load_taxonomy(ROOT / "data" / "sections.tsv", config)
-    report = run((config, taxonomy, Store(tmp_path / "c.db"), tmp_path))
+    report = run((config, taxonomy, Store(tmp_path / "c.db"), tmp_path), source=ReplayFeedSource(FIXTURES),
+                 only={LIFESTYLE})
     assert report["crawl"]["stories_in_window"] == 0 and report["clusters"] == []
 
 
@@ -197,44 +219,58 @@ def test_paging_ignored_is_detected(env, tmp_path):
 
 # ---------- AI path and guardrails ----------
 
-def test_ai_verify_and_title(env):
-    llm = FakeLLM(verify_drop={"135082360"})
-    run(env, llm=llm)
-    _, _, store, _ = env
+@pytest.fixture
+def soft_env(tmp_path):
+    """Every section soft, so the AI may write titles (on hard news it never does)."""
+    config = make_config(tmp_path, **SOFT)
+    return config, load_taxonomy(ROOT / "data" / "sections.tsv", config), Store(tmp_path / "clusters.db"), tmp_path
+
+
+def test_ai_verify_and_title(soft_env):
+    llm = FakeLLM(verify_drop={"135095509"})        # "राहुल गांधी की 'बुद्धि' पर ही उठा दिए सवाल"
+    run(soft_env, llm=llm)
+    _, _, store, _ = soft_env
     by_members = {frozenset(c.members): c for c in store.clusters()}
-    assert frozenset(DOCTOR - {"135082360"}) in by_members    # the model removed one story
-    karwa = by_members[frozenset(KARWA)]
-    assert karwa.title_source == "ai"
-    assert karwa.subtitle.startswith("पायल और आलता")
+    barala = by_members[frozenset(BARALA - {"135095509"})]    # the model removed one story
+    assert barala.title_source == "ai" and barala.title == "रितु बराला केस"
+    assert barala.subtitle == "जयपुर कमिश्नरेट में कांग्रेस का धरना"
+    tiger = by_members[frozenset(TIGER)]
+    assert tiger.title_source == "headline" and "sensitive word" in tiger.title_note   # a murder accused is a member
 
 
-def test_ai_title_with_invented_word_falls_back(env):
-    llm = FakeLLM(title={"title": "करवाचौथ का महा उत्सव", "subtitle": ""})
-    run(env, llm=llm)
-    _, _, store, _ = env
-    karwa = next(c for c in store.clusters() if c.members == KARWA)
-    assert karwa.title_source == "rules" and karwa.title == "करवाचौथ 2026"
-    assert "word not in source" in karwa.title_note
+def test_ai_title_with_invented_word_falls_back(soft_env):
+    llm = FakeLLM(title={"title": "रितु बराला महासंग्राम", "subtitle": ""})
+    run(soft_env, llm=llm)
+    _, _, store, _ = soft_env
+    barala = next(c for c in store.clusters() if c.members == BARALA)
+    assert barala.title_source == "rules" and barala.title == "रितु बराला"
+    assert "word not in source" in barala.title_note
 
 
-def test_ai_is_not_called_again_for_unchanged_clusters(env):
+def test_rules_titles_without_ai(soft_env):
+    run(soft_env)
+    _, _, store, _ = soft_env
+    titles = {frozenset(c.members): c.title for c in store.clusters()}
+    assert titles[frozenset(BARALA)] == "रितु बराला"         # one name, as the headlines write it
+    assert titles[frozenset(AZAM)] == "अखिलेश · आजम"         # two names
+
+
+def test_ai_is_not_called_again_for_unchanged_clusters(soft_env):
     llm = FakeLLM()
-    run(env, llm=llm)
+    run(soft_env, llm=llm)
     calls = llm.calls
-    run(env, llm=llm, now=NOW + timedelta(minutes=15))
+    run(soft_env, llm=llm, now=NOW + timedelta(minutes=15))
     assert llm.calls == calls
 
 
-def test_hard_tier_uses_headline_verbatim(tmp_path):
-    config = make_config(tmp_path, **{"tier_map.soft": [], "tier_map.hard": ["lifestyle"]})
-    taxonomy = load_taxonomy(ROOT / "data" / "sections.tsv", config)
-    store = Store(tmp_path / "c.db")
+def test_hard_tier_uses_headline_verbatim(env):
     llm = FakeLLM()
-    run((config, taxonomy, store, tmp_path), llm=llm)
-    karwa = next(c for c in store.clusters() if c.members == KARWA)
-    assert karwa.title_source == "headline"
-    assert karwa.title.startswith("10- 15 ग्राम चांदी में बनेंगी ट्रेंडी पायल")
-    assert not any("You write the label" in p for p in llm.prompts)   # AI never wrote hard-news copy
+    run(env, llm=llm)
+    _, _, store, _ = env
+    barala = next(c for c in store.clusters() if c.members == BARALA)
+    assert barala.title_source == "headline"
+    assert barala.title.startswith("'परिवाद और FIR में फर्क है', जयपुर कमिश्नर की ना के बाद रितु बराला")
+    assert not any("You write the label" in p and "रितु बराला" in p for p in llm.prompts)   # AI never wrote hard-news copy
 
 
 def test_check_title_rules():
@@ -287,10 +323,11 @@ def test_http_api(env, monkeypatch):
 
     try:
         home = get("/topicclusters?scope=home")
-        assert [c["title"] for c in home["clusters"]] == ["करवाचौथ 2026", "डॉक्टर"]
-        assert len(get(f"/topicclusters?msid={LIFESTYLE}")["clusters"]) == 2
+        assert [c["count"] for c in home["clusters"]] == [12, 7, 6, 3, 4]
+        assert home["clusters"][0]["title"].startswith("टाइगर श्रॉफ पर फायरिंग केस")
+        assert [c["count"] for c in get(f"/topicclusters?msid={JAIPUR}")["clusters"]] == [8]
         assert get("/topicclusters?msid=999")["clusters"] == []
-        assert len(get("/topicclusters?story=135086995")["clusters"]) == 2
+        assert len(get("/topicclusters?story=135103045")["clusters"]) == 2
         kid = home["clusters"][0]["clusterId"]
         req = urllib.request.Request(f"{base}/admin/kill?id={kid}", method="POST")
         with pytest.raises(urllib.error.HTTPError):
@@ -312,7 +349,7 @@ def test_http_feed_and_anthropic_client_end_to_end(tmp_path, monkeypatch):
     from urllib.parse import parse_qs, urlparse
     from nbt_topics.__main__ import main
 
-    feed_body = (FIXTURES / f"{LIFESTYLE}.json").read_bytes()
+    feeds = {msid: (NEWS_DIR / f"{msid}.json").read_bytes() for msid in NEWS}
     seen = {"feed": [], "llm": []}
 
     class Mock(BaseHTTPRequestHandler):
@@ -329,8 +366,9 @@ def test_http_feed_and_anthropic_client_end_to_end(tmp_path, monkeypatch):
         def do_GET(self):
             q = parse_qs(urlparse(self.path).query)
             seen["feed"].append(q)
-            if q.get("msid") == [LIFESTYLE] and "curpg" not in q:
-                return self._json(feed_body)
+            msid = q.get("msid", [""])[0]
+            if msid in feeds and "curpg" not in q:
+                return self._json(feeds[msid])
             return self._json({"error": "no"}, 404)
 
         def do_POST(self):
@@ -342,7 +380,7 @@ def test_http_feed_and_anthropic_client_end_to_end(tmp_path, monkeypatch):
                 ids = [l.split(" | ")[0] for l in body["messages"][0]["content"].splitlines() if " | " in l]
                 text = json.dumps({"keep": ids, "reason": "one topic"})
             else:
-                text = 'Here you go: {"title": "करवाचौथ 2026", "subtitle": "पायल और आलता के डिजाइन"}'
+                text = 'Here you go: {"title": "रितु बराला केस", "subtitle": "जयपुर कमिश्नरेट में कांग्रेस का धरना"}'
             return self._json({"content": [{"type": "text", "text": text}]})
 
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), Mock)
@@ -354,21 +392,24 @@ def test_http_feed_and_anthropic_client_end_to_end(tmp_path, monkeypatch):
     cfg_text = cfg_text.replace('provider = "none"', 'provider = "anthropic"')
     cfg_text = cfg_text.replace('base_url = ""            # empty = provider default', f'base_url = "{base}"')
     cfg_text = cfg_text.replace('concurrency = 8', 'concurrency = 4').replace('retries = 2', 'retries = 0')
+    cfg_text = cfg_text.replace('default_tier = "medium"', 'default_tier = "soft"')     # so the AI writes titles
+    cfg_text = "\n".join("medium = []" if l.startswith("medium = [") else "hard = []" if l.startswith("hard = [")
+                         else l for l in cfg_text.splitlines())
     (tmp_path / "config.toml").write_text(cfg_text, encoding="utf-8")
     (tmp_path / "data").mkdir()
     (tmp_path / "data" / "sections.tsv").write_bytes((ROOT / "data" / "sections.tsv").read_bytes())
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     try:
-        assert main(["--config", str(tmp_path / "config.toml"), "run", "--now", "2026-10-22T12:10",
-                     "--only", LIFESTYLE, "--only", "5647266"]) == 0
+        only = [arg for msid in sorted(NEWS) for arg in ("--only", msid)]
+        assert main(["--config", str(tmp_path / "config.toml"), "run", "--now", "2026-10-22T14:40", *only]) == 0
     finally:
         httpd.shutdown()
-    assert any(q.get("client") == ["nbt"] and q.get("msid") == [LIFESTYLE] for q in seen["feed"])
+    assert any(q.get("client") == ["nbt"] and q.get("msid") == [JAIPUR] for q in seen["feed"])
     assert all(b["model"] == "claude-haiku-5-5" and b["temperature"] == 0 for b in seen["llm"])
     home = json.loads((tmp_path / "out" / "home.json").read_text(encoding="utf-8"))
-    karwa = next(c for c in home["clusters"] if c["count"] == 3)
-    assert karwa["titleSource"] == "ai" and karwa["subtitle"] == "पायल और आलता के डिजाइन"
-    assert (tmp_path / "state" / "feed_cache" / f"{LIFESTYLE}_p1.json").exists()
+    barala = next(c for c in home["clusters"] if c["count"] == 8)
+    assert barala["titleSource"] == "ai" and barala["subtitle"] == "जयपुर कमिश्नरेट में कांग्रेस का धरना"
+    assert (tmp_path / "state" / "feed_cache" / f"{JAIPUR}_p1.json").exists()
 
 
 # ---------- frontend endpoints ----------
@@ -395,17 +436,18 @@ def test_frontend_endpoints(env, monkeypatch):
             assert r.headers["Access-Control-Allow-Origin"] == "*"
             home = json.loads(r.read())
         item = home["clusters"][0]["items"][0]
-        assert item["img"].startswith("https://static.langimg.com/thumb/msid-135108978,imgsize-1382247")
-        assert item["published"].startswith("2026-10-22T11:33") and item["syn"]
+        assert item["img"].startswith("https://static.langimg.com/thumb/msid-135112668,imgsize-102141")
+        assert item["published"].startswith("2026-10-22T12:44") and item["syn"]
         with urllib.request.urlopen(base + "/topicclusters?scope=sections") as r:
-            assert json.loads(r.read())["sections"] == [{"msid": LIFESTYLE, "sectionName": "लाइफस्टाइल", "level": 1, "count": 2}]
+            sections = {s["msid"]: s for s in json.loads(r.read())["sections"]}
+        assert sections[JAIPUR] == {"msid": JAIPUR, "sectionName": "जयपुर", "level": 3, "count": 1}
         cid = home["clusters"][0]["clusterId"]
         with urllib.request.urlopen(f"{base}/topicclusters?cluster={cid}") as r:
             assert json.loads(r.read())["clusterId"] == cid
         req = urllib.request.Request(base + "/admin/clusters", headers={"X-Admin-Token": "secret"})
         with urllib.request.urlopen(req) as r:
             desk = json.loads(r.read())["clusters"]
-        assert {c["killed"] for c in desk} == {False} and desk[0]["sections"][0]["name"] == "लाइफस्टाइल"
+        assert {c["killed"] for c in desk} == {False} and len(desk) == len(store.clusters())
         with pytest.raises(urllib.error.HTTPError):
             urllib.request.urlopen(base + "/admin/clusters")             # no token
     finally:

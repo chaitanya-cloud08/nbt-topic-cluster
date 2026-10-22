@@ -25,6 +25,10 @@ HINDI_STOP = set("""
 वाले जैसी जैसे जैसा कुछ सब सभी बहुत ज्यादा कम अगर लेकिन या फिर वहीं यहां यहाँ वरना जाता जाती जाते गया गई गए दिया दी
 दिए लिया ली लिए कहा कहीं कही हुआ हुई हुए होने रहें रखें रखना रखते चाहिए जरूरी जरूर आज कल दिन साल बार तरह चलिए आइए
 रेसिपी डिजाइन टिप्स फोटो तस्वीरें तस्वीर वीडियो खबर खबरें न्यूज लाइव अपडेट मिनट घंटे पूरी पूरा पूरे नाम
+राशिफल पंचांग ज्योतिष मूलांक भविष्यफल जन्मतिथि मुहूर्त शुभ मेष वृषभ मिथुन कर्क कन्या तुला वृश्चिक धनु मकर कुंभ मीन
+घायल गिरफ्तार गिरफ्तारी आरोपी आरोपियों मृत मृतक
+सिंह कुमार शाह यादव शर्मा गुप्ता वर्मा मिश्रा तिवारी पांडे पांडेय चौधरी पटेल खान अली
+पति पत्नी बेटा बेटे बेटी बेटियों पिता मां माता भाई बहन बच्चा बच्चे बच्ची बच्चों परिवार परिजन
 पुलिस सरकार मामला मामले मामलों लोग लोगों शहर जिला जिले गांव राज्य देश दुनिया भारत भारतीय बड़ा बड़ी बड़े
 खिलाफ बयान दावा फैसला फैसले सवाल जवाब शुरू खत्म हुआ हुई हुए मौका तैयारी करोड़ लाख रुपये रुपए प्रतिशत
 """.split())
@@ -41,6 +45,11 @@ know-how amp cms html articleshow details detail full what's here's why's vs via
 home homes at-home help helps quick quickly perfect right wrong good bad big small long short real reason reasons
 things know-about must should never always every everyone someone thing women woman men man people's world's
 police government govt case people city district village state country india indian claim decision statement
+rashifal horoscope panchang jyotish ank bhavishyafal mulank yuti muhurat shubh mesh vrishabh mithun kark kanya tula vrishchik dhanu makar kumbh meen
+aries taurus gemini leo virgo libra scorpio sagittarius capricorn aquarius pisces pisce ary
+injured injury injuries arrested arrest accused died dead death killed
+singh kumar shah yadav sharma gupta verma mishra tiwari pandey chaudhary choudhary patel khan ali
+husband wife son daughter father mother brother sister child children kid family
 crore lakh rupee rs percent start started end ends match today tomorrow yesterday report reports
 """.split())
 

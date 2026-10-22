@@ -4,9 +4,15 @@ Builds topic carousels for the Navbharat Times app with zero editorial work. Eve
 
 1. **Crawls** the articlelist feed of every section in `data/sections.tsv` (384 sections after skipping
    excluded formats and rows without an msid) and merges them into one de-duplicated pool of the last 72 hours.
-2. **Finds topics**: terms shared by several stories, from the English URL slug and the Hindi headline
-   (`karwachauth` + `करवाचौथ`, `doctor` + `डॉक्टर`). Broad terms (`delhi`) only count in pairs (`delhi + protest`).
-   Topics named after a section (`recipe`, `relationship`) are not topics and are dropped.
+2. **Finds topics**: names and specific words that several stories are about. One shared word is not enough:
+   `डॉक्टर`, `कोर्ट` or `सिंह` turn up in stories that have nothing else in common. A word names a topic when
+   - it is written in both the Hindi headline and the English URL slug, as names are (`टाइगर` / `tiger-shroff`),
+     while common words show up in only one of them (`मारी`, `injured`);
+   - the stories using it also share other specific words with each other: `रुबियो` stories also say `मार्को`
+     and `जामनगर`, while stories that share `डॉक्टर` share nothing else.
+   A story that shares nothing with the rest of its topic is dropped from it. Spellings and translations of one
+   word count once (`tiger` + `टाइगर` + `tigershroff`). Bare surnames, family words, crime-report words
+   (`घायल`, `arrested`), horoscope words and section names (`recipe`) never name a topic.
 3. **Verifies** each topic's stories with an LLM (optional), which removes stories that only share a word.
 4. **Matches** each topic to yesterday's clusters, so cluster ids and titles stay stable.
 5. **Titles** it under the guardrails below.
@@ -23,17 +29,21 @@ python -m nbt_topics run                      # one live cycle (needs access to 
 python -m nbt_topics serve                    # API on :8080
 ```
 
-Try it offline on the real lifestyle feed saved in `tests/fixtures`:
+Try it offline on 12 real news sections saved in `tests/fixtures/news`:
 
 ```bash
-python -m nbt_topics run --replay tests/fixtures --now 2026-10-22T12:10
+python -m nbt_topics run --replay tests/fixtures/news --now 2026-10-22T14:40
 ```
 
 ```
-crawl: 1/384 sections, 1 pages, 20 stories in window, 383 sections returned no data
-  [created  ] 'करवाचौथ 2026'  (3 stories, soft, active, title by rules)
-  [created  ] 'डॉक्टर'  (4 stories, soft, active, title by rules)
+crawl: 12/384 sections, 12 pages, 163 stories in window, 372 sections returned no data
+  [created  ] 'टाइगर श्रॉफ पर फायरिंग केस का कानपुर कनेक्शन, 15 दिन तक शहर में रही थी राधा'  (12 stories, hard, active, title by headline)
+  [created  ] 'रामपुर जेल में आजम खान से मिले अखिलेश यादव, क्या 15 लोगों की लिस्ट वाले नामों पर हुई चर्चा?'  (7 stories, hard, active, title by headline)
+  [created  ] 'लॉरेंस बिश्नोई सिर्फ 535 किमी दूर साबरमती जेल में बंद है, फिर भी मुंबई पुलिस नहीं सकी पूछताछ, जानिए क्या है मजबूरी'  (3 stories, hard, active, title by headline)
+  ...
 ```
+
+To replay a full live crawl later, point `--replay` at `state/feed_cache` (it holds every page the last run fetched).
 
 ## Turning on the AI steps
 
@@ -47,7 +57,7 @@ api_key_env = "ANTHROPIC_API_KEY"
 ```
 
 Without a key (`provider = "none"`) everything still runs: membership is kept as found and titles come from
-the Hindi word most member headlines share. With the LLM on, titles read better ("करवाचौथ 2026" plus a subtitle
+the Hindi words most member headlines share ("रितु बराला", "अखिलेश · आजम"). With the LLM on, titles read better ("करवाचौथ 2026" plus a subtitle
 like "पायल और आलता के डिजाइन…") and loose matches get removed.
 
 **Cost** scales with what you publish, not with traffic: one verify call when a topic gets new stories, and
@@ -154,7 +164,9 @@ are in `deploy/`.
 pip install pytest && python -m pytest -q
 ```
 
-18 tests on the real lifestyle feed and taxonomy: clustering result, stable ids across runs, a new story joining
-an existing cluster, archiving, kill switch, disabled sections, paging detection, AI verify and title,
-guardrail fallbacks, hard-tier and sensitive-story headlines, the HTTP API and frontend endpoints, and the production CLI talking over
-HTTP to stand-ins for the feed and the Anthropic API.
+20 tests on real feeds (12 news sections and the lifestyle section) and the taxonomy: one cluster per story
+(Tiger Shroff firing case, Ritu Barala, Azam Khan…), no cluster from one shared word (the lifestyle "डॉक्टर"
+stories), stable ids across runs, a new story joining an existing cluster, archiving, kill switch, disabled sections,
+paging detection, AI verify and title, rule-based titles, guardrail fallbacks, hard-tier and sensitive-story
+headlines, the HTTP API and frontend endpoints, and the production CLI talking over HTTP to stand-ins for the feed
+and the Anthropic API.

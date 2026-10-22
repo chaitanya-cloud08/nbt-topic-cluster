@@ -160,7 +160,14 @@ def rules_title(candidate: Candidate, members: list[Story]) -> TitleResult | Non
         labels = [w for w, c in coverage.most_common(3) if c >= 0.6 * n]
     if not labels:
         return None
-    title = " · ".join(labels[:2]) if candidate.kind == "pair" else labels[0]
+    title = labels[0]
+    if len(labels) > 1:
+        a, b = labels[:2]
+        # Two words of one name, written next to each other in the headlines: "रितु बराला", not "बराला · रितु".
+        adjacent = Counter(f"{x} {y}" for s in members for x, y in zip(hindi_words(s.hl), hindi_words(s.hl)[1:])
+                           if {x, y} == {a, b})
+        phrase, count = adjacent.most_common(1)[0] if adjacent else ("", 0)
+        title = phrase if count >= n / 2 else f"{a} · {b}"
     years = Counter(y for s in members for y in years_in(s.slug.replace("-", " ")))
     if years:
         y, c = years.most_common(1)[0]
