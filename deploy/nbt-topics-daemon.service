@@ -1,0 +1,13 @@
+[Unit]
+Description=NBT topic clusters: crawl + cluster cycle
+After=network-online.target
+
+[Service]
+WorkingDirectory=/opt/nbt-topic-clusters
+Environment=ANTHROPIC_API_KEY=__set_me__
+ExecStart=/usr/bin/python3 -m nbt_topics daemon
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

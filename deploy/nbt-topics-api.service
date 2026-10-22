@@ -1,0 +1,12 @@
+[Unit]
+Description=NBT topic clusters: HTTP API
+After=network-online.target
+
+[Service]
+WorkingDirectory=/opt/nbt-topic-clusters
+Environment=TOPICS_ADMIN_TOKEN=__set_me__
+ExecStart=/usr/bin/python3 -m nbt_topics serve
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

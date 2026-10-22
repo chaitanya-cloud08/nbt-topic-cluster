@@ -1,0 +1,114 @@
+# NBT topic clusters: configuration
+# Every value here can be changed without touching code.
+
+[feed]
+# Articlelist endpoint. {msid} pages are fetched with these query params.
+base_url = "https://global-feed.indiatimes.com/wufs/feed/list/article"
+params = { client = "nbt", pc = "nbt", dm = "t" }
+# Query param for page number. The feed reports paging in "pg" (cp/tp) but the
+# request param name is not visible in the feed itself. If page 2 comes back
+# identical to page 1, the crawler logs a warning and stops paging that section.
+page_param = "curpg"
+max_pages = 3
+timeout_s = 10
+retries = 2
+concurrency = 8
+user_agent = "nbt-topic-clusters/1.0"
+# How a story URL is built from an articlelist item (same pattern as "wu" in articleshow feeds).
+article_url = "https://navbharattimes.indiatimes.com/{seolocation}/articleshow/{id}.cms"
+# Image URL from an item's imageid/imgsize. Check this against what your app uses; the frontend shows a
+# tinted placeholder if an image fails to load.
+image_url = "https://static.langimg.com/thumb/msid-{imageid},imgsize-{imgsize},width-600,resizemode-4/navbharat-times.jpg"
+# On-disk cache of fetched pages, so each tier is only refetched at its refresh interval.
+cache_dir = "state/feed_cache"
+
+[pool]
+window_hours = 72
+timezone = "Asia/Kolkata"
+
+[clustering]
+min_stories = 3          # smallest cluster that may be shown
+max_single_df = 12       # a single term in more stories than this is too broad ("delhi"); it is only used in pairs ("delhi + protest")
+max_cluster_size = 30
+merge_jaccard = 0.8      # terms covering (almost) the same stories are one topic
+overlap_reject = 0.5     # a candidate sharing more than this with a stronger cluster is dropped
+half_life_hours = 24     # recency weighting of stories in the score
+section_spread_bonus = 0.25  # score bonus per extra section a topic spans
+mirror_min_subsection = 6    # a cluster equal to a whole sub-section of at least this size is a mirror, not a topic
+mirror_coverage = 0.9
+home_count = 5           # clusters on the app home
+section_count = 3        # clusters per section page
+section_share = 0.6      # a cluster shows on a section when this share of its stories came from that section's feed
+
+[lifecycle]
+cooling_multiplier = 2.0  # active -> cooling after active_hours since newest story; archived after active_hours x this
+new_badge_hours = 3
+
+# Risk tiers. title: "ai" = AI title from headline words; "ai_entities" = AI title, names only;
+# "headline" = most recent story's headline used verbatim (AI never writes the copy).
+[tiers.soft]
+active_hours = 36
+refresh_minutes = 60
+title = "ai"
+
+[tiers.medium]
+active_hours = 24
+refresh_minutes = 30
+title = "ai_entities"
+
+[tiers.hard]
+active_hours = 12
+refresh_minutes = 15
+title = "headline"
+
+# L1 section slug (lower case, from the taxonomy) -> tier. Unlisted L1 sections use default_tier.
+[tier_map]
+default_tier = "medium"
+soft = ["lifestyle", "hindi-recipes", "health-wellness", "travel", "auto", "tech", "astrology",
+        "education", "real estate", "good-news", "jungle news", "viral"]
+medium = ["entertainment", "tv", "sports", "business", "newsbrief"]
+hard = ["india", "state", "metro", "world", "crime", "leagle", "opinion"]
+# Never crawled: formats and sections where a topic carousel makes no sense.
+excluded = ["jokes", "video", "photomazza", "visual-story", "web-stories"]
+
+[sections]
+# Switch individual sections off without a deploy (msids as strings).
+disabled_msids = []
+
+[llm]
+# "none" runs fully rule-based (no AI calls). "anthropic" or "openai" (any OpenAI-compatible endpoint).
+provider = "none"
+model = "claude-haiku-5-5"
+api_key_env = "ANTHROPIC_API_KEY"
+base_url = ""            # empty = provider default
+timeout_s = 30
+max_candidates = 40      # stories sent to the verify step per candidate topic
+
+[guardrails]
+title_max_words = 6
+subtitle_max_words = 16
+# Any member headline or synopsis containing one of these forces the verbatim-headline title.
+sensitive_words = ["दुष्कर्म", "रेप", "बलात्कार", "हत्या", "मर्डर", "आत्महत्या", "सुसाइड", "मौत", "शव", "लाश",
+                   "दंगा", "दंगे", "सांप्रदायिक", "आतंकी", "आतंकवादी", "धमाका", "विस्फोट", "नाबालिग", "यौन",
+                   "हादसा", "दर्दनाक", "murder", "rape", "suicide", "riot", "terror"]
+# The AI may not use these in a title unless most member headlines already do.
+judgment_words = ["हमला", "बेनकाब", "पलटवार", "शर्मनाक", "घोटाला", "झूठ", "धोखा", "करारा", "जवाब", "बवाल",
+                  "हंगामा", "निशाना", "भड़के", "भड़की", "गद्दार", "देशद्रोही", "विवाद", "सनसनीखेज", "चौंकाने"]
+
+[store]
+path = "state/clusters.db"
+
+[output]
+dir = "out"
+
+[server]
+host = "0.0.0.0"
+port = 8080
+# Env var holding the token required for POST /admin/kill and /admin/unkill.
+admin_token_env = "TOPICS_ADMIN_TOKEN"
+# Origins allowed to call the API from a browser (the widget on navbharattimes.indiatimes.com, say). "*" = any.
+cors_origin = "*"
+
+[daemon]
+# How often the daemon runs a cycle. Each section is only refetched when its tier's refresh_minutes has passed.
+interval_minutes = 15

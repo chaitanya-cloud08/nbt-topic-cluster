@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NBT टॉपिक कैरोसेल</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;600;700;800&display=swap">
+<script src="topic-carousel.js" defer></script>
+<style>
+  :root{--bg:#FAF9F7;--fg:#1A1A1C;--muted:#55514B;--soft:#6B675F;--line:#E2DED8;--surface:#F1EEEA;--acc:#A35F00;
+    --tab:#FFFFFF;--tabline:#D5D0C9;--ph:#E4DED6}
+  @media (prefers-color-scheme: dark){:root:not([data-theme=light]){--bg:#121214;--fg:#F2F0EC;--muted:#B5B1AA;
+    --soft:#8F8B85;--line:#2A2A2E;--surface:#1C1C20;--acc:#F2A93B;--tab:#1E1E22;--tabline:#34343A;--ph:#2A2622}}
+  :root[data-theme=dark]{--bg:#121214;--fg:#F2F0EC;--muted:#B5B1AA;--soft:#8F8B85;--line:#2A2A2E;--surface:#1C1C20;
+    --acc:#F2A93B;--tab:#1E1E22;--tabline:#34343A;--ph:#2A2622}
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  html{background:var(--bg)}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:"Mukta","Noto Sans Devanagari",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  a{color:var(--acc)}
+  button{font:inherit;color:inherit}
+  .app{max-width:480px;margin:0 auto;min-height:100vh;border-inline:1px solid var(--line);background:var(--bg)}
+  header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;gap:4px;padding:8px 8px 8px 16px;min-height:60px}
+  .bar.sub{padding-left:4px}
+  .titles{flex:1;min-width:0}
+  .brand{font-size:12px;color:var(--soft);line-height:1.2}
+  h1.view{margin:0;font-size:22px;font-weight:700;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .icon{width:44px;height:44px;border-radius:22px;border:none;background:transparent;display:inline-flex;
+    align-items:center;justify-content:center;cursor:pointer;color:var(--fg);text-decoration:none}
+  .icon:hover{background:var(--surface)}
+  .icon:focus-visible,.tab:focus-visible,.story:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+  nav.tabs{display:flex;gap:8px;overflow-x:auto;padding:0 16px 12px;scrollbar-width:none}
+  nav.tabs::-webkit-scrollbar{display:none}
+  .tab{flex:0 0 auto;min-height:40px;padding:6px 16px;border-radius:999px;border:1px solid var(--tabline);background:var(--tab);
+    color:var(--fg);font-size:15px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center}
+  .tab[aria-current=page]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+  main{padding-bottom:40px}
+  .empty{margin:48px 24px;text-align:center;color:var(--muted);font-size:16px;line-height:1.6}
+  .hero{height:230px;background:var(--ph)}
+  .hero img{width:100%;height:100%;object-fit:cover;display:block}
+  .article{padding:18px 16px 4px;display:flex;flex-direction:column;gap:10px}
+  .article .meta{font-size:13px;color:var(--soft)}
+  .article h2{margin:0;font-size:24px;font-weight:700;line-height:1.35}
+  .article p{margin:0;font-size:17px;line-height:1.65;color:var(--muted)}
+  .readmore{display:inline-flex;align-items:center;gap:6px;min-height:44px;font-weight:600;font-size:15px;text-decoration:none}
+  .topichead{padding:20px 16px 8px;display:flex;flex-direction:column;gap:4px}
+  .topichead .eyebrow{font-size:13px;font-weight:600;color:var(--acc)}
+  .topichead h2{margin:0;font-size:30px;font-weight:800;line-height:1.2}
+  .topichead p{margin:0;font-size:15px;line-height:1.5;color:var(--muted)}
+  .stories{display:flex;flex-direction:column;padding:8px 16px}
+  .story{display:flex;gap:12px;padding:14px 0;border-top:1px solid var(--line);color:var(--fg);text-decoration:none}
+  .story .thumb{flex:0 0 104px;height:78px;border-radius:12px;overflow:hidden;background:var(--ph)}
+  .story .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .story h3{margin:0;font-size:16px;font-weight:600;line-height:1.4;display:-webkit-box;-webkit-line-clamp:3;
+    -webkit-box-orient:vertical;overflow:hidden}
+  .story .m{font-size:12px;color:var(--soft);margin-top:4px}
+  .story .n{color:var(--acc);font-weight:600}
+  footer{padding:24px 16px 40px;font-size:13px;color:var(--soft);border-top:1px solid var(--line)}
+  footer a{color:var(--muted)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="bar" id="bar">
+      <a class="icon" id="back" href="#/" aria-label="वापस" hidden>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      </a>
+      <div class="titles">
+        <div class="brand">नवभारत टाइम्स</div>
+        <h1 class="view" id="viewTitle">होम</h1>
+      </div>
+      <button class="icon" id="theme" type="button" aria-label="थीम बदलें">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+    </div>
+    <nav class="tabs" id="tabs" aria-label="सेक्शन"></nav>
+  </header>
+  <main id="main" tabindex="-1"></main>
+  <footer>टॉपिक अपने-आप बनते हैं: हर 15 मिनट में सभी सेक्शन की खबरों से। <a href="desk">डेस्क पेज</a></footer>
+</div>
+
+<script>
+(() => {
+  const API = "";                      // same origin as this page
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const ago = (iso) => {
+    const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
+    if (!isFinite(m)) return "";
+    if (m < 1) return "अभी";
+    if (m < 60) return `${m} मिनट पहले`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return h === 1 ? "1 घंटा पहले" : `${h} घंटे पहले`;
+    const d = Math.floor(h / 24);
+    return d === 1 ? "1 दिन पहले" : `${d} दिन पहले`;
+  };
+  const img = (src) => src ? `<img src="${esc(src)}" alt="" loading="lazy" onerror="this.remove()">` : "";
+  const getJSON = async (q) => { const r = await fetch(`${API}/topicclusters?${q}`); return r.ok ? r.json() : null; };
+
+  // Theme: auto -> dark -> light, remembered per browser.
+  const themes = ["auto", "dark", "light"];
+  let theme = "auto";
+  try { theme = localStorage.getItem("nbt-topic-theme") || "auto"; } catch (_) {}
+  const applyTheme = () => {
+    if (theme === "auto") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", theme);
+    document.querySelectorAll("nbt-topic-carousel").forEach((w) => theme === "auto" ? w.removeAttribute("theme") : w.setAttribute("theme", theme));
+    $("#theme").setAttribute("aria-label", `थीम: ${theme === "auto" ? "डिवाइस जैसी" : theme === "dark" ? "डार्क" : "लाइट"}`);
+  };
+  $("#theme").addEventListener("click", () => {
+    theme = themes[(themes.indexOf(theme) + 1) % themes.length];
+    try { localStorage.setItem("nbt-topic-theme", theme); } catch (_) {}
+    applyTheme();
+  });
+
+  // In this demo, taps stay inside the app instead of leaving for the website.
+  document.addEventListener("nbt-topic-open", (e) => { e.preventDefault(); location.hash = `#/story/${e.detail.item.id}`; });
+  document.addEventListener("nbt-topic-open-cluster", (e) => { e.preventDefault(); location.hash = `#/topic/${e.detail.cluster.clusterId}`; });
+
+  let sections = [];
+  async function loadTabs() {
+    const data = await getJSON("scope=sections").catch(() => null);
+    sections = (data && data.sections) || [];
+    renderTabs();
+  }
+  function renderTabs(current) {
+    const tabs = [{ href: "#/", label: "होम", key: "home" }].concat(
+      sections.map((s) => ({ href: `#/section/${s.msid}`, label: s.sectionName || s.msid, key: s.msid })));
+    $("#tabs").innerHTML = tabs.map((t) =>
+      `<a class="tab" href="${t.href}" ${t.key === current ? 'aria-current="page"' : ""}>${esc(t.label)}</a>`).join("");
+  }
+
+  function setChrome(title, { back = false, tab = null } = {}) {
+    $("#viewTitle").textContent = title;
+    $("#back").hidden = !back;
+    $("#tabs").hidden = back;
+    if (!back) renderTabs(tab);
+    document.title = `${title} · NBT टॉपिक`;
+  }
+
+  const widget = (attrs) => {
+    const el = document.createElement("nbt-topic-carousel");
+    Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+    if (theme !== "auto") el.setAttribute("theme", theme);
+    el.addEventListener("nbt-topic-empty", () => {
+      if (!attrs.story) $("#main").insertAdjacentHTML("beforeend", `<p class="empty">अभी यहां कोई टॉपिक नहीं है। नई खबरें आने पर टॉपिक अपने-आप बनेंगे।</p>`);
+    });
+    return el;
+  };
+
+  async function route() {
+    const main = $("#main");
+    const [, view, id] = (location.hash.replace(/^#/, "") || "/").split("/");
+    main.innerHTML = "";
+    window.scrollTo(0, 0);
+
+    if (view === "section" && id) {
+      const s = sections.find((x) => x.msid === id);
+      setChrome(s ? s.sectionName : "सेक्शन", { tab: id });
+      main.append(widget({ api: API, msid: id }));
+      return;
+    }
+
+    if (view === "story" && id) {
+      setChrome("खबर", { back: true });
+      const data = await getJSON(`story=${encodeURIComponent(id)}`);
+      const item = data && data.clusters.flatMap((c) => c.items).find((it) => it.id === id);
+      if (!item) { main.innerHTML = `<p class="empty">यह खबर अभी किसी टॉपिक में नहीं है।</p>`; return; }
+      setChrome(item.subsecname || "खबर", { back: true });
+      main.innerHTML = `
+        <div class="hero">${img(item.img)}</div>
+        <article class="article">
+          <div class="meta">नवभारतटाइम्स.कॉम · ${esc(ago(item.published))}</div>
+          <h2>${esc(item.hl)}</h2>
+          ${item.syn ? `<p>${esc(item.syn)}</p>` : ""}
+          <a class="readmore" href="${esc(item.wu)}" target="_blank" rel="noopener">पूरा लेख पढ़ें
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+        </article>`;
+      main.append(widget({ api: API, story: id }));
+      return;
+    }
+
+    if (view === "topic" && id) {
+      setChrome("टॉपिक", { back: true });
+      const c = await getJSON(`cluster=${encodeURIComponent(id)}`);
+      if (!c || !c.items) { main.innerHTML = `<p class="empty">यह टॉपिक अब उपलब्ध नहीं है।</p>`; return; }
+      setChrome(c.title, { back: true });
+      main.innerHTML = `
+        <div class="topichead">
+          <div class="eyebrow">टॉपिक · ${c.items.length} खबरें · ${esc(ago(c.items[0].published))} अपडेट</div>
+          <h2>${esc(c.title)}</h2>
+          ${c.subtitle ? `<p>${esc(c.subtitle)}</p>` : ""}
+        </div>
+        <div class="stories">${c.items.map((it) => `
+          <a class="story" href="#/story/${esc(it.id)}">
+            <div class="thumb">${img(it.img)}</div>
+            <div><h3>${esc(it.hl)}</h3><div class="m">${esc(it.subsecname)} · ${esc(ago(it.published))}${it.isNew ? ' · <span class="n">नया</span>' : ""}</div></div>
+          </a>`).join("")}</div>`;
+      return;
+    }
+
+    setChrome("होम", { tab: "home" });
+    main.append(widget({ api: API, scope: "home" }));
+  }
+
+  window.addEventListener("hashchange", route);
+  applyTheme();
+  loadTabs().then(route);
+})();
+</script>
+</body>
+</html>

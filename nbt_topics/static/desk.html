@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Topic desk · NBT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;600;700;800&display=swap">
+<style>
+  :root{--bg:#F7F6F3;--fg:#1A1A1C;--muted:#55514B;--soft:#6B675F;--line:#E2DED8;--card:#FFFFFF;--acc:#A35F00;
+    --ok:#1E6B3A;--okbg:#E5F3EA;--warn:#8A5300;--warnbg:#FFF1DC;--bad:#A11D33;--badbg:#FCE8EC;--input:#FFFFFF}
+  @media (prefers-color-scheme: dark){:root{--bg:#121214;--fg:#F2F0EC;--muted:#B5B1AA;--soft:#8F8B85;--line:#2C2C31;
+    --card:#1C1C20;--acc:#F2A93B;--ok:#7FD69A;--okbg:#16281D;--warn:#F2C27A;--warnbg:#2A2216;--bad:#F59AAB;
+    --badbg:#2C171C;--input:#18181B}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:"Mukta","Noto Sans Devanagari",system-ui,sans-serif}
+  button,input,select{font:inherit;color:inherit}
+  .wrap{max-width:1040px;margin:0 auto;padding:24px 16px 64px}
+  header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:20px}
+  h1{margin:0;font-size:28px;font-weight:800;line-height:1.2}
+  .lede{margin:4px 0 0;color:var(--muted);font-size:15px}
+  .auth{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  label{font-size:13px;color:var(--muted)}
+  input,select{min-height:44px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--input)}
+  .btn{min-height:44px;padding:8px 16px;border-radius:10px;border:1px solid var(--line);background:var(--card);
+    font-weight:600;cursor:pointer}
+  .btn.primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+  .btn.danger{color:var(--bad);border-color:var(--bad);background:transparent}
+  .btn.restore{color:var(--ok);border-color:var(--ok);background:transparent}
+  .btn:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+  .tools{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin-bottom:16px}
+  .tools .grow{flex:1 1 240px;display:flex;flex-direction:column;gap:4px}
+  .tools .f{display:flex;flex-direction:column;gap:4px}
+  .stats{display:flex;gap:16px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin-bottom:16px}
+  .stats b{color:var(--fg)}
+  .list{display:flex;flex-direction:column;gap:12px}
+  .item{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;display:grid;
+    grid-template-columns:minmax(0,1fr) auto;gap:8px 16px}
+  .item.killed{opacity:.72}
+  .t{margin:0;font-size:21px;font-weight:700;line-height:1.3}
+  .sub{margin:2px 0 0;color:var(--muted);font-size:15px}
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .tag{font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--muted)}
+  .tag.ok{background:var(--okbg);color:var(--ok);border-color:transparent}
+  .tag.warn{background:var(--warnbg);color:var(--warn);border-color:transparent}
+  .tag.bad{background:var(--badbg);color:var(--bad);border-color:transparent}
+  .actions{display:flex;flex-direction:column;gap:8px;align-items:stretch}
+  .actions a{font-size:14px;text-align:center;color:var(--acc);min-height:32px;display:flex;align-items:center;justify-content:center}
+  details{grid-column:1/-1;border-top:1px solid var(--line);padding-top:8px}
+  summary{cursor:pointer;font-size:14px;color:var(--muted);min-height:32px;display:flex;align-items:center}
+  details ol{margin:6px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+  details li{font-size:15px;line-height:1.45}
+  details li span{color:var(--soft);font-size:13px}
+  .note{grid-column:1/-1;font-size:13px;color:var(--soft)}
+  .msg{padding:14px 16px;border-radius:12px;background:var(--card);border:1px solid var(--line);color:var(--muted)}
+  .msg.err{border-color:var(--bad);color:var(--bad)}
+  @media (max-width:560px){.item{grid-template-columns:1fr}.actions{flex-direction:row}.actions>*{flex:1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Topic desk</h1>
+      <p class="lede">Every topic carousel live in the app right now. Hide one and it disappears within a minute.</p>
+    </div>
+    <form class="auth" id="auth">
+      <label for="token" class="sr" style="position:absolute;left:-9999px">Desk token</label>
+      <input id="token" type="password" placeholder="Desk token" autocomplete="current-password" required>
+      <button class="btn primary" type="submit">Load</button>
+    </form>
+  </header>
+
+  <div class="tools" id="tools" hidden>
+    <div class="grow"><label for="q">Search titles and headlines</label><input id="q" type="search" placeholder="e.g. करवाचौथ"></div>
+    <div class="f"><label for="show">Show</label>
+      <select id="show"><option value="all">All</option><option value="live">Live</option><option value="hidden">Hidden</option></select></div>
+    <div class="f"><label for="tier">Tier</label>
+      <select id="tier"><option value="">Any</option><option value="soft">Soft</option><option value="medium">Medium</option><option value="hard">Hard news</option></select></div>
+    <button class="btn" id="reload" type="button">Refresh</button>
+  </div>
+  <div class="stats" id="stats"></div>
+  <div class="list" id="list"><div class="msg">Enter the desk token to see live topics.</div></div>
+</div>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  let token = "";
+  try { token = sessionStorage.getItem("nbt-desk-token") || ""; } catch (_) {}
+  let clusters = [];
+
+  const SOURCE = { ai: ["AI title", "ok"], rules: ["Rule title", ""], headline: ["Headline title", "warn"] };
+  const STATUS = { active: ["Active", "ok"], cooling: ["Cooling", "warn"] };
+
+  async function api(path, opts = {}) {
+    const res = await fetch(path, { ...opts, headers: { "X-Admin-Token": token, ...(opts.headers || {}) } });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+    return body;
+  }
+
+  async function load() {
+    $("#list").innerHTML = `<div class="msg">Loading…</div>`;
+    try {
+      clusters = (await api("/admin/clusters")).clusters;
+      $("#tools").hidden = false;
+      render();
+    } catch (e) {
+      $("#tools").hidden = true;
+      $("#stats").textContent = "";
+      $("#list").innerHTML = `<div class="msg err">Couldn't load topics: ${esc(e.message)}</div>`;
+    }
+  }
+
+  function render() {
+    const q = $("#q").value.trim().toLowerCase();
+    const show = $("#show").value, tier = $("#tier").value;
+    const rows = clusters.filter((c) =>
+      (show === "all" || (show === "hidden") === c.killed) && (!tier || c.tier === tier) &&
+      (!q || (c.title + " " + c.items.map((i) => i.hl).join(" ")).toLowerCase().includes(q)));
+    const live = clusters.filter((c) => !c.killed);
+    $("#stats").innerHTML = `<span><b>${live.length}</b> live</span><span><b>${clusters.length - live.length}</b> hidden</span>
+      <span><b>${live.filter((c) => c.titleSource === "ai").length}</b> AI titles</span>
+      <span><b>${live.filter((c) => c.tier === "hard").length}</b> hard news</span>`;
+    if (!rows.length) { $("#list").innerHTML = `<div class="msg">No topics match.</div>`; return; }
+    $("#list").innerHTML = rows.map((c) => {
+      const [srcLabel, srcCls] = SOURCE[c.titleSource] || [c.titleSource, ""];
+      const [stLabel, stCls] = c.killed ? ["Hidden", "bad"] : (STATUS[c.status] || [c.status, ""]);
+      const where = (c.sections || []).map((s) => s.name || s.msid).join(", ") || "home only";
+      return `<div class="item${c.killed ? " killed" : ""}">
+        <div>
+          <h2 class="t">${esc(c.title)}</h2>
+          ${c.subtitle ? `<p class="sub">${esc(c.subtitle)}</p>` : ""}
+          <div class="tags">
+            <span class="tag ${stCls}">${stLabel}</span><span class="tag ${srcCls}">${srcLabel}</span>
+            <span class="tag">${esc(c.tier)} tier</span><span class="tag">${c.count} stories</span>
+            <span class="tag">score ${c.score}</span><span class="tag">shows in: ${esc(where)}</span>
+          </div>
+        </div>
+        <div class="actions">
+          ${c.killed
+            ? `<button class="btn restore" type="button" data-unkill="${esc(c.clusterId)}">Show again</button>`
+            : `<button class="btn danger" type="button" data-kill="${esc(c.clusterId)}">Hide topic</button>`}
+          <a href="./#/topic/${encodeURIComponent(c.clusterId)}" target="_blank" rel="noopener">Preview</a>
+        </div>
+        ${c.titleNote ? `<div class="note">Title note: ${esc(c.titleNote)}</div>` : ""}
+        <details><summary>${c.count} stories in this topic</summary><ol>${c.items.map((i) =>
+          `<li><a href="${esc(i.wu)}" target="_blank" rel="noopener">${esc(i.hl)}</a> <span>· ${esc(i.subsecname)} · ${esc(i.lu)}</span></li>`).join("")}</ol></details>
+      </div>`;
+    }).join("");
+  }
+
+  $("#list").addEventListener("click", async (e) => {
+    const kill = e.target.closest("[data-kill]"), unkill = e.target.closest("[data-unkill]");
+    const btn = kill || unkill;
+    if (!btn) return;
+    const id = btn.dataset.kill || btn.dataset.unkill;
+    const c = clusters.find((x) => x.clusterId === id);
+    if (kill && !confirm(`Hide “${c ? c.title : id}” from the app?`)) return;
+    btn.disabled = true;
+    btn.textContent = "Saving…";
+    try {
+      await api(`/admin/${kill ? "kill" : "unkill"}?id=${encodeURIComponent(id)}`, { method: "POST" });
+      await load();
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = kill ? "Hide topic" : "Show again";
+      alert(`Couldn't save: ${err.message}`);
+    }
+  });
+
+  $("#auth").addEventListener("submit", (e) => {
+    e.preventDefault();
+    token = $("#token").value.trim();
+    try { sessionStorage.setItem("nbt-desk-token", token); } catch (_) {}
+    load();
+  });
+  ["q", "show", "tier"].forEach((id) => $("#" + id).addEventListener("input", render));
+  $("#reload").addEventListener("click", load);
+  if (token) { $("#token").value = token; load(); }
+})();
+</script>
+</body>
+</html>
