@@ -66,6 +66,10 @@ def _print_report(report: dict) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Hindi titles must print even when Windows redirects output to a file (cp1252 by default).
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     p = argparse.ArgumentParser(prog="nbt_topics")
     p.add_argument("--config", default="config.toml")
     p.add_argument("--taxonomy", default="data/sections.tsv")
